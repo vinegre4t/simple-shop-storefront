@@ -1,11 +1,13 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { toast } from "@/components/ui/use-toast";
+import { supabase } from '@/lib/supabase';
+import { Session, User, AuthError } from '@supabase/supabase-js';
 
-export type User = {
-  id: number;
-  name: string;
+export type AuthUser = {
+  id: string;
   email: string;
+  name: string;
   isAdmin?: boolean;
 };
 
@@ -21,100 +23,173 @@ export type LoginData = {
 };
 
 interface AuthContextType {
-  user: User | null;
-  login: (data: LoginData) => void;
-  register: (data: RegisterData) => void;
-  logout: () => void;
+  user: AuthUser | null;
+  login: (data: LoginData) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
+  logout: () => Promise<void>;
   isLoading: boolean;
   isAdmin: boolean;
+  session: Session | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demo purposes
-const mockUsers: User[] = [
-  { id: 1, name: "Admin", email: "admin@example.com", isAdmin: true },
-  { id: 2, name: "User", email: "user@example.com" },
-];
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Check for stored user on mount
+  // Проверяем сессию пользователя при загрузке
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
-  }, []);
-
-  const login = (data: LoginData) => {
-    setIsLoading(true);
-    // Mock login - in a real app this would be an API call
-    setTimeout(() => {
-      const foundUser = mockUsers.find(u => u.email === data.email);
+    const getSession = async () => {
+      setIsLoading(true);
       
-      if (foundUser) {
-        setUser(foundUser);
-        localStorage.setItem('user', JSON.stringify(foundUser));
-        toast({
-          title: "Успешный вход",
-          description: `Добро пожаловать, ${foundUser.name}!`,
-        });
-      } else {
-        toast({
-          title: "Ошибка входа",
-          description: "Неверный email или пароль.",
-          variant: "destructive",
+      // Проверяем текущую сессию
+      const { data, error } = await supabase.auth.getSession();
+      
+      if (!error && data.session) {
+        setSession(data.session);
+        const { user } = data.session;
+        
+        // Получаем данные профиля пользователя
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+          
+        setUser({
+          id: user.id,
+          email: user.email || '',
+          name: profileData?.name || 'Пользователь',
+          isAdmin: profileData?.is_admin || false,
         });
       }
       
       setIsLoading(false);
-    }, 1000);
-  };
-
-  const register = (data: RegisterData) => {
-    setIsLoading(true);
-    // Mock registration - in a real app this would be an API call
-    setTimeout(() => {
-      const exists = mockUsers.some(u => u.email === data.email);
       
-      if (exists) {
+      // Слушаем изменения состояния аутентификации
+      const { data: authListener } = supabase.auth.onAuthStateChange(
+        async (event, currentSession) => {
+          setSession(currentSession);
+          
+          if (currentSession && currentSession.user) {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', currentSession.user.id)
+              .single();
+              
+            setUser({
+              id: currentSession.user.id,
+              email: currentSession.user.email || '',
+              name: profileData?.name || 'Пользователь',
+              isAdmin: profileData?.is_admin || false,
+            });
+          } else {
+            setUser(null);
+          }
+          
+          setIsLoading(false);
+        }
+      );
+      
+      return () => {
+        authListener.subscription.unsubscribe();
+      };
+    };
+    
+    getSession();
+  }, []);
+
+  const register = async (data: RegisterData) => {
+    setIsLoading(true);
+    
+    // Регистрируем пользователя
+    const { data: authData, error } = await supabase.auth.signUp({
+      email: data.email,
+      password: data.password,
+    });
+    
+    if (error) {
+      toast({
+        title: "Ошибка регистрации",
+        description: error.message,
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+    
+    if (authData.user) {
+      // Создаем профиль пользователя
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          name: data.name,
+          email: data.email,
+          is_admin: false,
+        });
+      
+      if (profileError) {
         toast({
-          title: "Ошибка регистрации",
-          description: "Пользователь с таким email уже существует.",
+          title: "Ошибка создания профиля",
+          description: profileError.message,
           variant: "destructive",
         });
       } else {
-        const newUser: User = {
-          id: mockUsers.length + 1,
-          name: data.name,
-          email: data.email,
-        };
-        
-        mockUsers.push(newUser);
-        setUser(newUser);
-        localStorage.setItem('user', JSON.stringify(newUser));
-        
         toast({
           title: "Успешная регистрация",
           description: `Добро пожаловать, ${data.name}!`,
         });
       }
-      
-      setIsLoading(false);
-    }, 1000);
+    }
+    
+    setIsLoading(false);
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
-    toast({
-      title: "Выход выполнен",
-      description: "Вы успешно вышли из системы.",
+  const login = async (data: LoginData) => {
+    setIsLoading(true);
+    
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
+      email: data.email,
+      password: data.password,
     });
+    
+    if (error) {
+      toast({
+        title: "Ошибка входа",
+        description: "Неверный email или пароль.",
+        variant: "destructive",
+      });
+    } else if (authData.user) {
+      toast({
+        title: "Успешный вход",
+        description: "Вы успешно вошли в систему.",
+      });
+    }
+    
+    setIsLoading(false);
+  };
+
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+    
+    if (error) {
+      toast({
+        title: "Ошибка выхода",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setUser(null);
+      setSession(null);
+      toast({
+        title: "Выход выполнен",
+        description: "Вы успешно вышли из системы.",
+      });
+    }
   };
 
   const isAdmin = user?.isAdmin || false;
@@ -126,7 +201,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       register, 
       logout, 
       isLoading,
-      isAdmin
+      isAdmin,
+      session
     }}>
       {children}
     </AuthContext.Provider>

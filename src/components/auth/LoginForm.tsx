@@ -36,8 +36,14 @@ export default function LoginForm() {
 
   const onSubmit = async (data: z.infer<typeof loginSchema>) => {
     setAuthError(null);
-    login(data as LoginData);
-    navigate("/");
+    try {
+      await login(data as LoginData);
+      navigate("/");
+    } catch (error) {
+      if (error instanceof Error) {
+        setAuthError(error.message);
+      }
+    }
   };
 
   // Demo credentials helper

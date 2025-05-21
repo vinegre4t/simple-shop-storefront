@@ -43,9 +43,15 @@ export default function RegisterForm() {
 
   const onSubmit = async (data: z.infer<typeof registerSchema>) => {
     setAuthError(null);
-    const { confirmPassword, ...registerData } = data;
-    register(registerData as RegisterData);
-    navigate("/");
+    try {
+      const { confirmPassword, ...registerData } = data;
+      await register(registerData as RegisterData);
+      navigate("/");
+    } catch (error) {
+      if (error instanceof Error) {
+        setAuthError(error.message);
+      }
+    }
   };
 
   return (

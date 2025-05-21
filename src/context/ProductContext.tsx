@@ -1,136 +1,182 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { toast } from "@/components/ui/use-toast";
+import { supabase } from '@/lib/supabase';
+import { ProductType } from '@/lib/supabase';
 
-export type Product = {
-  id: number;
-  name: string;
-  description: string;
-  price: number;
-  image: string;
-  category: string;
-};
-
-export type NewProduct = Omit<Product, "id">;
+export type Product = ProductType;
+export type NewProduct = Omit<Product, "id" | "created_at">;
 
 interface ProductContextType {
   products: Product[];
-  addProduct: (product: NewProduct) => void;
-  updateProduct: (id: number, product: Partial<Product>) => void;
-  deleteProduct: (id: number) => void;
-  getProductById: (id: number) => Product | undefined;
-  searchProducts: (query: string) => Product[];
+  addProduct: (product: NewProduct) => Promise<void>;
+  updateProduct: (id: number, product: Partial<Product>) => Promise<void>;
+  deleteProduct: (id: number) => Promise<void>;
+  getProductById: (id: number) => Promise<Product | null>;
+  searchProducts: (query: string) => Promise<Product[]>;
   isLoading: boolean;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
-// Mock product data
-const initialProducts: Product[] = [
-  {
-    id: 1,
-    name: "Минималистичная футболка",
-    description: "Классическая футболка из 100% органического хлопка. Минималистичный дизайн для повседневной носки.",
-    price: 1200,
-    image: "/placeholder.svg",
-    category: "Одежда"
-  },
-  {
-    id: 2,
-    name: "Керамическая чашка",
-    description: "Стильная керамическая чашка ручной работы. Идеально подходит для вашего утреннего кофе или чая.",
-    price: 950,
-    image: "/placeholder.svg",
-    category: "Дом"
-  },
-  {
-    id: 3,
-    name: "Кожаный кошелек",
-    description: "Прочный кошелек из натуральной кожи с множеством отделений для карт и купюр.",
-    price: 2500,
-    image: "/placeholder.svg",
-    category: "Аксессуары"
-  },
-  {
-    id: 4,
-    name: "Настольная лампа",
-    description: "Современная настольная лампа с регулируемой яркостью. Идеальное дополнение к вашему рабочему пространству.",
-    price: 3200,
-    image: "/placeholder.svg",
-    category: "Дом"
-  },
-  {
-    id: 5,
-    name: "Ноутбук-органайзер",
-    description: "Стильный органайзер для заметок и планирования с минималистичным дизайном.",
-    price: 850,
-    image: "/placeholder.svg",
-    category: "Канцтовары"
-  },
-  {
-    id: 6,
-    name: "Беспроводные наушники",
-    description: "Высококачественные беспроводные наушники с шумоподавлением и длительным сроком службы батареи.",
-    price: 8500,
-    image: "/placeholder.svg",
-    category: "Электроника"
-  }
-];
-
 export const ProductProvider = ({ children }: { children: ReactNode }) => {
-  const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const addProduct = (product: NewProduct) => {
-    const newProduct = {
-      ...product,
-      id: Date.now()
-    };
+  // Загружаем продукты при монтировании компонента
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  // Получение всех продуктов
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('created_at', { ascending: false });
+      
+    if (error) {
+      toast({
+        title: "Ошибка загрузки товаров",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else if (data) {
+      setProducts(data);
+    }
     
-    setProducts([...products, newProduct]);
-    toast({
-      title: "Товар добавлен",
-      description: `${product.name} успешно добавлен.`,
-    });
+    setIsLoading(false);
   };
 
-  const updateProduct = (id: number, updatedFields: Partial<Product>) => {
-    setProducts(currentProducts => 
-      currentProducts.map(product => 
-        product.id === id ? { ...product, ...updatedFields } : product
-      )
-    );
+  // Добавление нового продукта
+  const addProduct = async (product: NewProduct) => {
+    setIsLoading(true);
     
-    toast({
-      title: "Товар обновлен",
-      description: `Товар успешно обновлен.`,
-    });
+    const { data, error } = await supabase
+      .from('products')
+      .insert([product])
+      .select();
+      
+    if (error) {
+      toast({
+        title: "Ошибка добавления товара",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else if (data && data[0]) {
+      setProducts(prevProducts => [data[0], ...prevProducts]);
+      toast({
+        title: "Товар добавлен",
+        description: `${product.name} успешно добавлен.`,
+      });
+    }
+    
+    setIsLoading(false);
   };
 
-  const deleteProduct = (id: number) => {
-    setProducts(currentProducts => {
-      const productToRemove = currentProducts.find(p => p.id === id);
-      if (productToRemove) {
-        toast({
-          title: "Товар удален",
-          description: `${productToRemove.name} удален из каталога.`,
-        });
-      }
-      return currentProducts.filter(product => product.id !== id);
-    });
+  // Обновление продукта
+  const updateProduct = async (id: number, updatedFields: Partial<Product>) => {
+    setIsLoading(true);
+    
+    const { data, error } = await supabase
+      .from('products')
+      .update(updatedFields)
+      .eq('id', id)
+      .select();
+      
+    if (error) {
+      toast({
+        title: "Ошибка обновления товара",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else if (data && data[0]) {
+      setProducts(prevProducts =>
+        prevProducts.map(product => 
+          product.id === id ? { ...product, ...data[0] } : product
+        )
+      );
+      
+      toast({
+        title: "Товар обновлен",
+        description: `Товар успешно обновлен.`,
+      });
+    }
+    
+    setIsLoading(false);
   };
 
-  const getProductById = (id: number) => {
-    return products.find(product => product.id === id);
+  // Удаление продукта
+  const deleteProduct = async (id: number) => {
+    const productToDelete = products.find(p => p.id === id);
+    
+    if (!productToDelete) return;
+    
+    setIsLoading(true);
+    
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', id);
+      
+    if (error) {
+      toast({
+        title: "Ошибка удаления товара",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setProducts(currentProducts => 
+        currentProducts.filter(product => product.id !== id)
+      );
+      
+      toast({
+        title: "Товар удален",
+        description: `${productToDelete.name} удален из каталога.`,
+      });
+    }
+    
+    setIsLoading(false);
   };
 
-  const searchProducts = (query: string) => {
+  // Получение продукта по ID
+  const getProductById = async (id: number) => {
+    // Сначала проверяем в локальном состоянии
+    const localProduct = products.find(product => product.id === id);
+    if (localProduct) return localProduct;
+    
+    // Если не найден локально, запрашиваем с сервера
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', id)
+      .single();
+      
+    if (error) {
+      console.error("Ошибка получения товара:", error);
+      return null;
+    }
+    
+    return data;
+  };
+
+  // Поиск продуктов
+  const searchProducts = async (query: string) => {
+    if (!query.trim()) return products;
+    
     const lowerCaseQuery = query.toLowerCase();
-    return products.filter(product => 
-      product.name.toLowerCase().includes(lowerCaseQuery) ||
-      product.description.toLowerCase().includes(lowerCaseQuery) ||
-      product.category.toLowerCase().includes(lowerCaseQuery)
-    );
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .or(`name.ilike.%${lowerCaseQuery}%,description.ilike.%${lowerCaseQuery}%,category.ilike.%${lowerCaseQuery}%`);
+      
+    if (error) {
+      console.error("Ошибка поиска товаров:", error);
+      return [];
+    }
+    
+    return data || [];
   };
 
   return (

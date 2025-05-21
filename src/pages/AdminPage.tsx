@@ -19,7 +19,7 @@ import { useProducts } from "@/context/ProductContext";
 
 export default function AdminPage() {
   const { user, isAdmin, isLoading } = useAuth();
-  const { products } = useProducts();
+  const { products, isLoading: productsLoading } = useProducts();
   const navigate = useNavigate();
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   
@@ -29,7 +29,7 @@ export default function AdminPage() {
     }
   }, [user, isAdmin, isLoading, navigate]);
 
-  if (isLoading) {
+  if (isLoading || productsLoading) {
     return (
       <Layout>
         <div className="flex items-center justify-center py-12">

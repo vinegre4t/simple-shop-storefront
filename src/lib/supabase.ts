@@ -34,7 +34,12 @@ export type OrderType = {
   user_id: string;
   items: CartItemType[];
   total: number;
-  status: 'pending' | 'processing' | 'completed' | 'cancelled';
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'completed' | 'cancelled';
   address: string;
   created_at: string;
+  customerName?: string;
+  customerEmail?: string;
 }
+
+export type OrderStatus = OrderType['status'];
+

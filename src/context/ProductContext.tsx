@@ -1,5 +1,5 @@
 
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from '@/lib/supabase';
 import { ProductType } from '@/lib/supabase';
@@ -12,8 +12,8 @@ interface ProductContextType {
   addProduct: (product: NewProduct) => Promise<void>;
   updateProduct: (id: number, product: Partial<Product>) => Promise<void>;
   deleteProduct: (id: number) => Promise<void>;
-  getProductById: (id: number) => Promise<Product | null>;
-  searchProducts: (query: string) => Promise<Product[]>;
+  getProductById: (id: number) => Product | null;
+  searchProducts: (query: string) => Product[];
   isLoading: boolean;
 }
 
@@ -140,43 +140,23 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(false);
   };
 
-  // Получение продукта по ID
-  const getProductById = async (id: number) => {
-    // Сначала проверяем в локальном состоянии
+  // Получение продукта по ID - теперь синхронная функция
+  const getProductById = (id: number) => {
+    // Проверяем в локальном состоянии
     const localProduct = products.find(product => product.id === id);
-    if (localProduct) return localProduct;
-    
-    // Если не найден локально, запрашиваем с сервера
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('id', id)
-      .single();
-      
-    if (error) {
-      console.error("Ошибка получения товара:", error);
-      return null;
-    }
-    
-    return data;
+    return localProduct || null;
   };
 
-  // Поиск продуктов
-  const searchProducts = async (query: string) => {
+  // Синхронный поиск продуктов
+  const searchProducts = (query: string) => {
     if (!query.trim()) return products;
     
     const lowerCaseQuery = query.toLowerCase();
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .or(`name.ilike.%${lowerCaseQuery}%,description.ilike.%${lowerCaseQuery}%,category.ilike.%${lowerCaseQuery}%`);
-      
-    if (error) {
-      console.error("Ошибка поиска товаров:", error);
-      return [];
-    }
-    
-    return data || [];
+    return products.filter(product => 
+      product.name.toLowerCase().includes(lowerCaseQuery) ||
+      product.description.toLowerCase().includes(lowerCaseQuery) ||
+      product.category.toLowerCase().includes(lowerCaseQuery)
+    );
   };
 
   return (

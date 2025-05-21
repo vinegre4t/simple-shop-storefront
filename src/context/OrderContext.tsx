@@ -2,10 +2,11 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from '@/lib/supabase';
-import { OrderType } from '@/lib/supabase';
+import { OrderType, OrderStatus } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
 
 export type Order = OrderType;
+export { OrderStatus };
 
 interface OrderContextType {
   orders: Order[];
@@ -51,12 +52,16 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
         description: error.message,
         variant: "destructive",
       });
+      setIsLoading(false);
+      return [];
     } else if (data) {
       setOrders(data);
+      setIsLoading(false);
+      return data;
     }
     
     setIsLoading(false);
-    return data || [];
+    return [];
   };
 
   // Получение заказов пользователя
@@ -75,12 +80,16 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
         description: error.message,
         variant: "destructive",
       });
+      setIsLoading(false);
+      return [];
     } else if (data) {
       setOrders(data);
+      setIsLoading(false);
+      return data;
     }
     
     setIsLoading(false);
-    return data || [];
+    return [];
   };
 
   // Создание нового заказа

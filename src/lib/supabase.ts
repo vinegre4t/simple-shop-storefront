@@ -29,17 +29,16 @@ export type CartItemType = {
   quantity: number;
 }
 
+export type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'completed' | 'cancelled';
+
 export type OrderType = {
   id: number;
   user_id: string;
   items: CartItemType[];
   total: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'completed' | 'cancelled';
+  status: OrderStatus;
   address: string;
   created_at: string;
   customerName?: string;
   customerEmail?: string;
 }
-
-export type OrderStatus = OrderType['status'];
-

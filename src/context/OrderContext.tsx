@@ -6,7 +6,7 @@ import { OrderType, OrderStatus } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
 
 export type Order = OrderType;
-export { OrderStatus };
+export type { OrderStatus };
 
 interface OrderContextType {
   orders: Order[];

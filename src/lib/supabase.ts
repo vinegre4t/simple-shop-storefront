@@ -1,11 +1,13 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Get environment variables or use placeholders for development
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder-url.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Отсутствуют переменные окружения SUPABASE. Проверьте наличие VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY');
+// Create a warning instead of throwing an error
+if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+  console.warn('⚠️ Supabase environment variables are missing. The application will run in development mode with limited functionality. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment.');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

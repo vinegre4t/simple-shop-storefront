@@ -17,8 +17,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth, RegisterData } from "@/context/AuthContext";
 
 const registerSchema = z.object({
-  name: z.string().min(2, "Имя должно содержать не менее 2 символов"),
-  email: z.string().email("Введите корректный email"),
+  username: z.string().min(2, "Имя пользователя должно содержать не менее 2 символов"),
   password: z.string().min(6, "Пароль должен содержать не менее 6 символов"),
   confirmPassword: z.string().min(6, "Подтвердите пароль"),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -29,23 +28,24 @@ const registerSchema = z.object({
 export default function RegisterForm() {
   const { register, isLoading } = useAuth();
   const navigate = useNavigate();
-  const [authError, setAuthError] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      name: "",
-      email: "",
+      username: "",
       password: "",
       confirmPassword: "",
     },
   });
 
   const onSubmit = async (data: z.infer<typeof registerSchema>) => {
-    setAuthError(null);
-    const { confirmPassword, ...registerData } = data;
-    register(registerData as RegisterData);
-    navigate("/");
+    try {
+      const { confirmPassword, ...registerData } = data;
+      await register(registerData as RegisterData);
+      navigate("/");
+    } catch (error) {
+      // Ошибка уже обработана в AuthContext
+    }
   };
 
   return (
@@ -57,36 +57,16 @@ export default function RegisterForm() {
         </p>
       </div>
 
-      {authError && (
-        <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
-          {authError}
-        </div>
-      )}
-
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
             control={form.control}
-            name="name"
+            name="username"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Имя</FormLabel>
+                <FormLabel>Имя пользователя</FormLabel>
                 <FormControl>
-                  <Input placeholder="Иван Иванов" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input placeholder="example@mail.com" {...field} />
+                  <Input placeholder="Введите имя пользователя" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

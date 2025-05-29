@@ -14,7 +14,7 @@ export default function CartSummary() {
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (!user) {
       navigate("/login?redirect=cart");
       return;
@@ -22,23 +22,20 @@ export default function CartSummary() {
 
     setIsProcessing(true);
     
-    // Simulate order processing
-    setTimeout(() => {
-      if (items.length > 0 && user) {
-        createOrder({
-          userId: user.id,
-          items: [...items],
-          total: cartTotal,
-          address: "Адрес будет указан при оформлении",
-          customerName: user.name,
-          customerEmail: user.email
+    try {
+      if (items.length > 0) {
+        await createOrder({
+          shippingAddress: "Адрес будет указан при оформлении"
         });
         
-        clearCart();
+        await clearCart();
         navigate("/account");
       }
+    } catch (error) {
+      console.error('Checkout error:', error);
+    } finally {
       setIsProcessing(false);
-    }, 1500);
+    }
   };
 
   if (items.length === 0) {

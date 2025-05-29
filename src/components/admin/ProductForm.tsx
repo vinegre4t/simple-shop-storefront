@@ -19,8 +19,9 @@ const productSchema = z.object({
   name: z.string().min(2, "Название должно содержать не менее 2 символов"),
   description: z.string().min(10, "Описание должно содержать не менее 10 символов"),
   price: z.coerce.number().min(1, "Цена должна быть больше 0"),
-  image: z.string().default("/placeholder.svg"),
+  imageUrl: z.string().default("https://example.com/placeholder.jpg"),
   category: z.string().min(2, "Категория должна содержать не менее 2 символов"),
+  stock: z.coerce.number().min(0, "Количество должно быть больше или равно 0"),
 });
 
 interface ProductFormProps {
@@ -38,30 +39,36 @@ export default function ProductForm({ product, onSuccess }: ProductFormProps) {
       name: product?.name || "",
       description: product?.description || "",
       price: product?.price || 0,
-      image: product?.image || "/placeholder.svg",
+      imageUrl: product?.imageUrl || "https://example.com/placeholder.jpg",
       category: product?.category || "",
+      stock: product?.stock || 0,
     },
   });
 
   const onSubmit = async (data: z.infer<typeof productSchema>) => {
-    if (isEditing && product) {
-      updateProduct(product.id, data);
-    } else {
-      addProduct(data as NewProduct);
-    }
-    
-    if (onSuccess) {
-      onSuccess();
-    }
-    
-    if (!isEditing) {
-      form.reset({
-        name: "",
-        description: "",
-        price: 0,
-        image: "/placeholder.svg",
-        category: "",
-      });
+    try {
+      if (isEditing && product) {
+        await updateProduct(product._id, data);
+      } else {
+        await addProduct(data as NewProduct);
+      }
+      
+      if (onSuccess) {
+        onSuccess();
+      }
+      
+      if (!isEditing) {
+        form.reset({
+          name: "",
+          description: "",
+          price: 0,
+          imageUrl: "https://example.com/placeholder.jpg",
+          category: "",
+          stock: 0,
+        });
+      }
+    } catch (error) {
+      console.error('Form submission error:', error);
     }
   };
 
@@ -108,7 +115,7 @@ export default function ProductForm({ product, onSuccess }: ProductFormProps) {
               <FormItem>
                 <FormLabel>Цена (₽)</FormLabel>
                 <FormControl>
-                  <Input type="number" min="0" step="1" {...field} />
+                  <Input type="number" min="0" step="0.01" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -117,12 +124,12 @@ export default function ProductForm({ product, onSuccess }: ProductFormProps) {
 
           <FormField
             control={form.control}
-            name="category"
+            name="stock"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Категория</FormLabel>
+                <FormLabel>Количество</FormLabel>
                 <FormControl>
-                  <Input placeholder="Категория товара" {...field} />
+                  <Input type="number" min="0" step="1" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -132,7 +139,21 @@ export default function ProductForm({ product, onSuccess }: ProductFormProps) {
 
         <FormField
           control={form.control}
-          name="image"
+          name="category"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Категория</FormLabel>
+              <FormControl>
+                <Input placeholder="Категория товара" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="imageUrl"
           render={({ field }) => (
             <FormItem>
               <FormLabel>URL изображения</FormLabel>

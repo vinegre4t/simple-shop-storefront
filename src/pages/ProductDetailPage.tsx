@@ -12,7 +12,7 @@ export default function ProductDetailPage() {
   const { getProductById } = useProducts();
   const { addToCart } = useCart();
   
-  const product = getProductById(Number(productId));
+  const product = getProductById(productId!);
 
   if (!product) {
     return (
@@ -32,7 +32,7 @@ export default function ProductDetailPage() {
       <div className="flex flex-col md:flex-row gap-8">
         <div className="md:w-1/2 rounded-lg overflow-hidden bg-muted">
           <img
-            src={product.image}
+            src={product.imageUrl}
             alt={product.name}
             className="w-full h-auto object-cover aspect-square"
           />
@@ -61,12 +61,7 @@ export default function ProductDetailPage() {
           <Button
             size="lg"
             className="mt-8"
-            onClick={() => addToCart({
-              id: product.id,
-              name: product.name,
-              price: product.price,
-              image: product.image,
-            })}
+            onClick={() => addToCart(product._id)}
           >
             <ShoppingCart className="mr-2 h-5 w-5" /> Добавить в корзину
           </Button>

@@ -35,7 +35,6 @@ const getStatusColor = (status: OrderStatus) => {
     case "processing": return "bg-blue-100 text-blue-800 border-blue-200";
     case "shipped": return "bg-purple-100 text-purple-800 border-purple-200";
     case "delivered": return "bg-green-100 text-green-800 border-green-200";
-    case "completed": return "bg-green-100 text-green-800 border-green-200";
     case "cancelled": return "bg-red-100 text-red-800 border-red-200";
     default: return "bg-gray-100 text-gray-800 border-gray-200";
   }
@@ -55,7 +54,7 @@ export default function OrdersList() {
 
   // Sort orders by date (newest first)
   const sortedOrders = [...orders].sort((a, b) => 
-    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
   return (
@@ -86,8 +85,8 @@ export default function OrdersList() {
                   onClick={() => toggleOrderExpansion(order.id)}
                 >
                   <TableCell className="font-medium">#{order.id}</TableCell>
-                  <TableCell>{order.customerName || 'Клиент'}</TableCell>
-                  <TableCell>{formatDate(order.created_at)}</TableCell>
+                  <TableCell>{order.customerName}</TableCell>
+                  <TableCell>{formatDate(order.createdAt)}</TableCell>
                   <TableCell>{order.total} ₽</TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <Select
@@ -101,7 +100,6 @@ export default function OrdersList() {
                              order.status === "processing" ? "В обработке" : 
                              order.status === "shipped" ? "Отправлен" : 
                              order.status === "delivered" ? "Доставлен" : 
-                             order.status === "completed" ? "Выполнен" : 
                              "Отменен"}
                           </Badge>
                         </SelectValue>
@@ -111,7 +109,6 @@ export default function OrdersList() {
                         <SelectItem value="processing">В обработке</SelectItem>
                         <SelectItem value="shipped">Отправлен</SelectItem>
                         <SelectItem value="delivered">Доставлен</SelectItem>
-                        <SelectItem value="completed">Выполнен</SelectItem>
                         <SelectItem value="cancelled">Отменен</SelectItem>
                       </SelectContent>
                     </Select>
@@ -124,7 +121,7 @@ export default function OrdersList() {
                         <div>
                           <h4 className="font-medium">Информация о заказе</h4>
                           <div className="text-sm text-muted-foreground mt-1 grid grid-cols-2 gap-2">
-                            <div>Email: {order.customerEmail || 'Не указан'}</div>
+                            <div>Email: {order.customerEmail}</div>
                             <div>Адрес: {order.address}</div>
                           </div>
                         </div>

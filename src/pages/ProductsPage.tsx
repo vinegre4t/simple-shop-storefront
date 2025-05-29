@@ -5,13 +5,12 @@ import Layout from "@/components/layout/Layout";
 import SearchForm from "@/components/products/SearchForm";
 import ProductGrid from "@/components/products/ProductGrid";
 import { useProducts } from "@/context/ProductContext";
-import { ProductType } from "@/lib/supabase";
 
 export default function ProductsPage() {
   const { products, searchProducts } = useProducts();
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get("search") || "";
-  const [filteredProducts, setFilteredProducts] = useState<ProductType[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState(products);
 
   useEffect(() => {
     if (searchQuery) {

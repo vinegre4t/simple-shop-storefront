@@ -1,153 +1,95 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { toast } from "@/components/ui/use-toast";
-import { supabase } from '@/lib/supabase';
-import { OrderType, OrderStatus } from '@/lib/supabase';
-import { useAuth } from './AuthContext';
+import { CartItem } from './CartContext';
+import { User } from './AuthContext';
 
-export type Order = OrderType;
-export type { OrderStatus };
+export type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+
+export type Order = {
+  id: number;
+  userId: number;
+  items: CartItem[];
+  total: number;
+  status: OrderStatus;
+  createdAt: string;
+  address: string;
+  customerName: string;
+  customerEmail: string;
+};
+
+export type NewOrder = Omit<Order, "id" | "createdAt" | "status">;
 
 interface OrderContextType {
   orders: Order[];
-  createOrder: (order: Omit<Order, 'id' | 'created_at'>) => Promise<void>;
-  updateOrderStatus: (id: number, status: Order['status']) => Promise<void>;
-  getOrdersByUser: (userId: string) => Promise<Order[]>;
-  getAllOrders: () => Promise<Order[]>;
+  createOrder: (order: NewOrder) => void;
+  updateOrderStatus: (id: number, status: OrderStatus) => void;
+  getUserOrders: (userId: number) => Order[];
+  getAllOrders: () => Order[];
   isLoading: boolean;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
+// Mock orders for demo purposes
+const initialOrders: Order[] = [
+  {
+    id: 1,
+    userId: 2,
+    items: [
+      { id: 1, name: "Минималистичная футболка", price: 1200, image: "/placeholder.svg", quantity: 2 },
+      { id: 3, name: "Кожаный кошелек", price: 2500, image: "/placeholder.svg", quantity: 1 }
+    ],
+    total: 4900,
+    status: 'delivered',
+    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
+    address: "ул. Пушкина, д. 10, кв. 5",
+    customerName: "Иван Иванов",
+    customerEmail: "user@example.com"
+  }
+];
+
 export const OrderProvider = ({ children }: { children: ReactNode }) => {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const { user, isAdmin } = useAuth();
-  
-  // Загружаем заказы при монтировании компонента и изменении пользователя
-  useEffect(() => {
-    if (user) {
-      if (isAdmin) {
-        // Загружаем все заказы для админа
-        getAllOrders();
-      } else {
-        // Загружаем только заказы пользователя
-        getOrdersByUser(user.id);
-      }
-    }
-  }, [user, isAdmin]);
 
-  // Получение всех заказов (только для админа)
-  const getAllOrders = async () => {
-    setIsLoading(true);
+  const createOrder = (order: NewOrder) => {
+    const newOrder: Order = {
+      ...order,
+      id: Date.now(),
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
     
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .order('created_at', { ascending: false });
-      
-    if (error) {
-      toast({
-        title: "Ошибка загрузки заказов",
-        description: error.message,
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return [];
-    } else if (data) {
-      setOrders(data);
-      setIsLoading(false);
-      return data;
-    }
+    setOrders([...orders, newOrder]);
     
-    setIsLoading(false);
-    return [];
+    toast({
+      title: "Заказ создан",
+      description: `Номер заказа: #${newOrder.id}`,
+    });
+    
+    return newOrder.id;
   };
 
-  // Получение заказов пользователя
-  const getOrdersByUser = async (userId: string) => {
-    setIsLoading(true);
+  const updateOrderStatus = (id: number, status: OrderStatus) => {
+    setOrders(currentOrders => 
+      currentOrders.map(order => 
+        order.id === id ? { ...order, status } : order
+      )
+    );
     
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-      
-    if (error) {
-      toast({
-        title: "Ошибка загрузки заказов",
-        description: error.message,
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return [];
-    } else if (data) {
-      setOrders(data);
-      setIsLoading(false);
-      return data;
-    }
-    
-    setIsLoading(false);
-    return [];
+    toast({
+      title: "Статус заказа обновлен",
+      description: `Заказ #${id} теперь в статусе: ${status}`,
+    });
   };
 
-  // Создание нового заказа
-  const createOrder = async (order: Omit<Order, 'id' | 'created_at'>) => {
-    setIsLoading(true);
-    
-    const { data, error } = await supabase
-      .from('orders')
-      .insert([order])
-      .select();
-      
-    if (error) {
-      toast({
-        title: "Ошибка создания заказа",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else if (data && data[0]) {
-      setOrders(prevOrders => [data[0], ...prevOrders]);
-      toast({
-        title: "Заказ создан",
-        description: `Заказ #${data[0].id} успешно оформлен.`,
-      });
-    }
-    
-    setIsLoading(false);
+  const getUserOrders = (userId: number) => {
+    return orders.filter(order => order.userId === userId);
   };
 
-  // Обновление статуса заказа
-  const updateOrderStatus = async (id: number, status: Order['status']) => {
-    setIsLoading(true);
-    
-    const { data, error } = await supabase
-      .from('orders')
-      .update({ status })
-      .eq('id', id)
-      .select();
-      
-    if (error) {
-      toast({
-        title: "Ошибка обновления статуса",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else if (data && data[0]) {
-      setOrders(prevOrders =>
-        prevOrders.map(order => 
-          order.id === id ? { ...order, status: data[0].status } : order
-        )
-      );
-      
-      toast({
-        title: "Статус обновлен",
-        description: `Статус заказа #${id} изменен на "${status}".`,
-      });
-    }
-    
-    setIsLoading(false);
+  const getAllOrders = () => {
+    return orders;
   };
 
   return (
@@ -155,9 +97,9 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
       orders, 
       createOrder, 
       updateOrderStatus, 
-      getOrdersByUser,
+      getUserOrders,
       getAllOrders,
-      isLoading 
+      isLoading
     }}>
       {children}
     </OrderContext.Provider>

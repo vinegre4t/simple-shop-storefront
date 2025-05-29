@@ -26,11 +26,10 @@ export default function CartSummary() {
     setTimeout(() => {
       if (items.length > 0 && user) {
         createOrder({
-          user_id: user.id,
+          userId: user.id,
           items: [...items],
           total: cartTotal,
           address: "Адрес будет указан при оформлении",
-          status: "pending",
           customerName: user.name,
           customerEmail: user.email
         });

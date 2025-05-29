@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import { useAuth } from "@/context/AuthContext";
 import { useOrders } from "@/context/OrderContext";
-import { OrderType } from "@/lib/supabase";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
@@ -44,8 +43,6 @@ const getStatusBadge = (status: string) => {
       return <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-200">Отправлен</Badge>;
     case "delivered":
       return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">Доставлен</Badge>;
-    case "completed":
-      return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">Выполнен</Badge>;
     case "cancelled":
       return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">Отменен</Badge>;
     default:
@@ -55,26 +52,20 @@ const getStatusBadge = (status: string) => {
 
 export default function AccountPage() {
   const { user, isLoading } = useAuth();
-  const { getOrdersByUser } = useOrders();
+  const { getUserOrders } = useOrders();
   const navigate = useNavigate();
-  const [userOrders, setUserOrders] = useState<OrderType[]>([]);
+  const [userOrders, setUserOrders] = useState([]);
   
   useEffect(() => {
     if (!isLoading && !user) {
       navigate("/login");
     }
     
-    const fetchOrders = async () => {
-      if (user) {
-        const orders = await getOrdersByUser(user.id);
-        setUserOrders(orders);
-      }
-    };
-    
     if (user) {
-      fetchOrders();
+      const orders = getUserOrders(user.id);
+      setUserOrders(orders);
     }
-  }, [user, isLoading, navigate, getOrdersByUser]);
+  }, [user, isLoading, navigate, getUserOrders]);
 
   if (isLoading || !user) {
     return (
@@ -135,7 +126,7 @@ export default function AccountPage() {
                         {userOrders.map((order) => (
                           <TableRow key={order.id}>
                             <TableCell className="font-medium">#{order.id}</TableCell>
-                            <TableCell>{formatDate(order.created_at)}</TableCell>
+                            <TableCell>{formatDate(order.createdAt)}</TableCell>
                             <TableCell>{order.total} ₽</TableCell>
                             <TableCell>{getStatusBadge(order.status)}</TableCell>
                             <TableCell>{order.items.length} товаров</TableCell>

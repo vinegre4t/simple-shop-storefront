@@ -1,5 +1,15 @@
 
-const API_BASE_URL = 'http://localhost:5000/api';
+// Определяем базовый URL API в зависимости от окружения
+const getApiBaseUrl = () => {
+  // В продакшене или если бэкенд на том же домене
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:5000/api';
+  }
+  // Для деплоя - используем относительный путь или настроенный URL
+  return '/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 // Utility function to get auth token
 const getAuthToken = (): string | null => {
@@ -19,14 +29,30 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
     },
   };
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+  console.log(`Making API request to: ${API_BASE_URL}${endpoint}`);
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: 'Network error' }));
-    throw new Error(errorData.message || 'Something went wrong');
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Network error' }));
+      console.error(`API Error ${response.status}:`, errorData);
+      throw new Error(errorData.message || `HTTP Error ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log(`API Response for ${endpoint}:`, data);
+    return data;
+  } catch (error: any) {
+    console.error(`Network error for ${endpoint}:`, error);
+    
+    // Проверяем, является ли это CORS ошибкой
+    if (error.message.includes('NetworkError') || error.name === 'TypeError') {
+      throw new Error('Не удается подключиться к серверу. Проверьте, что бэкенд запущен на порту 5000.');
+    }
+    
+    throw error;
   }
-
-  return response.json();
 };
 
 // Auth API

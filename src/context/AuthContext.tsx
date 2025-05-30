@@ -41,6 +41,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (storedUser && storedToken) {
       try {
         setUser(JSON.parse(storedUser));
+        console.log('Restored user from localStorage:', JSON.parse(storedUser));
       } catch (error) {
         console.error('Error parsing stored user:', error);
         localStorage.removeItem('user');
@@ -51,18 +52,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (data: LoginData) => {
     setIsLoading(true);
+    console.log('Attempting login for user:', data.username);
+    
     try {
       const response = await authAPI.login(data);
+      console.log('Login response:', response);
       
-      setUser(response.user);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      // Бэкенд возвращает { token, user: { username, role } }
+      const userData = {
+        username: response.user.username,
+        role: response.user.role
+      };
+      
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
       localStorage.setItem('authToken', response.token);
       
       toast({
         title: "Успешный вход",
-        description: `Добро пожаловать, ${response.user.username}!`,
+        description: `Добро пожаловать, ${userData.username}!`,
       });
     } catch (error: any) {
+      console.error('Login error:', error);
       toast({
         title: "Ошибка входа",
         description: error.message || "Неверные учетные данные.",
@@ -76,13 +87,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = async (data: RegisterData) => {
     setIsLoading(true);
+    console.log('Attempting registration for user:', data.username);
+    
     try {
       const response = await authAPI.register(data);
+      console.log('Registration response:', response);
       
       // Автоматически входим после регистрации
       if (response.token) {
-        setUser(response.user);
-        localStorage.setItem('user', JSON.stringify(response.user));
+        const userData = {
+          username: response.user.username,
+          role: response.user.role
+        };
+        
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
         localStorage.setItem('authToken', response.token);
       }
       
@@ -91,6 +110,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         description: `Добро пожаловать, ${data.username}!`,
       });
     } catch (error: any) {
+      console.error('Registration error:', error);
       toast({
         title: "Ошибка регистрации",
         description: error.message || "Не удалось создать аккаунт.",
@@ -103,6 +123,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
+    console.log('Logging out user');
     setUser(null);
     localStorage.removeItem('user');
     localStorage.removeItem('authToken');

@@ -4,7 +4,6 @@ import { toast } from "@/components/ui/use-toast";
 import { authAPI } from '@/lib/api';
 
 export type User = {
-  _id: string;
   username: string;
   role: 'admin' | 'user';
 };

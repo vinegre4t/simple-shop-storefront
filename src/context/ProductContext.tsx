@@ -43,10 +43,13 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
 
   const loadProducts = async (keyword?: string) => {
     setIsLoading(true);
+    console.log('Loading products from API...');
     try {
       const data = await productsAPI.getAll(keyword);
+      console.log('Products loaded:', data);
       setProducts(data);
     } catch (error: any) {
+      console.error('Error loading products:', error);
       toast({
         title: "Ошибка загрузки товаров",
         description: error.message || "Не удалось загрузить товары.",

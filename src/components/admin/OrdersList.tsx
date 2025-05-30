@@ -42,13 +42,13 @@ const getStatusColor = (status: OrderStatus) => {
 
 export default function OrdersList() {
   const { orders, updateOrderStatus } = useOrders();
-  const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
-  const toggleOrderExpansion = (orderId: number) => {
+  const toggleOrderExpansion = (orderId: string) => {
     setExpandedOrder(expandedOrder === orderId ? null : orderId);
   };
 
-  const handleStatusChange = (orderId: number, status: OrderStatus) => {
+  const handleStatusChange = (orderId: string, status: OrderStatus) => {
     updateOrderStatus(orderId, status);
   };
 
@@ -80,18 +80,18 @@ export default function OrdersList() {
             sortedOrders.map((order) => (
               <>
                 <TableRow 
-                  key={order.id} 
+                  key={order._id} 
                   className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => toggleOrderExpansion(order.id)}
+                  onClick={() => toggleOrderExpansion(order._id)}
                 >
-                  <TableCell className="font-medium">#{order.id}</TableCell>
-                  <TableCell>{order.customerName}</TableCell>
+                  <TableCell className="font-medium">#{order._id.slice(-6)}</TableCell>
+                  <TableCell>{order.user}</TableCell>
                   <TableCell>{formatDate(order.createdAt)}</TableCell>
                   <TableCell>{order.total} ₽</TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <Select
                       value={order.status}
-                      onValueChange={(value) => handleStatusChange(order.id, value as OrderStatus)}
+                      onValueChange={(value) => handleStatusChange(order._id, value as OrderStatus)}
                     >
                       <SelectTrigger className="w-[130px]">
                         <SelectValue>
@@ -114,22 +114,22 @@ export default function OrdersList() {
                     </Select>
                   </TableCell>
                 </TableRow>
-                {expandedOrder === order.id && (
+                {expandedOrder === order._id && (
                   <TableRow className="bg-muted/50">
                     <TableCell colSpan={5} className="p-4">
                       <div className="space-y-4">
                         <div>
                           <h4 className="font-medium">Информация о заказе</h4>
                           <div className="text-sm text-muted-foreground mt-1 grid grid-cols-2 gap-2">
-                            <div>Email: {order.customerEmail}</div>
-                            <div>Адрес: {order.address}</div>
+                            <div>Пользователь: {order.user}</div>
+                            <div>Адрес: {order.shippingAddress}</div>
                           </div>
                         </div>
                         <div>
                           <h4 className="font-medium">Товары</h4>
                           <ul className="mt-1 space-y-2">
-                            {order.items.map((item) => (
-                              <li key={item.id} className="flex justify-between text-sm">
+                            {order.items.map((item, index) => (
+                              <li key={`${item.product}-${index}`} className="flex justify-between text-sm">
                                 <span>{item.name} × {item.quantity}</span>
                                 <span className="font-medium">{item.price * item.quantity} ₽</span>
                               </li>

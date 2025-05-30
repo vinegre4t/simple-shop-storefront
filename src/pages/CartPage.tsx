@@ -39,8 +39,8 @@ export default function CartPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-2 space-y-4">
-              {items.map((item) => (
-                <CartItem key={item.id} item={item} />
+              {items.map((item, index) => (
+                <CartItem key={`${item.product}-${index}`} item={item} />
               ))}
               <Separator />
             </div>

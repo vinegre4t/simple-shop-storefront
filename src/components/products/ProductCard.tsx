@@ -15,15 +15,20 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
-    addToCart(product._id);
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: product.image,
+    });
   };
 
   return (
-    <Link to={`/products/${product._id}`}>
+    <Link to={`/products/${product.id}`}>
       <Card className="overflow-hidden transition-all hover:shadow-md">
         <div className="aspect-square overflow-hidden bg-muted">
           <img
-            src={product.imageUrl}
+            src={product.image}
             alt={product.name}
             className="h-full w-full object-cover transition-transform hover:scale-105"
           />

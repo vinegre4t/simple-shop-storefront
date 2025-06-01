@@ -1,5 +1,5 @@
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import { useAuth } from "@/context/AuthContext";
@@ -52,8 +52,9 @@ const getStatusBadge = (status: string) => {
 
 export default function AccountPage() {
   const { user, isLoading } = useAuth();
-  const { orders, getUserOrders } = useOrders();
+  const { getUserOrders } = useOrders();
   const navigate = useNavigate();
+  const [userOrders, setUserOrders] = useState([]);
   
   useEffect(() => {
     if (!isLoading && !user) {
@@ -61,7 +62,8 @@ export default function AccountPage() {
     }
     
     if (user) {
-      getUserOrders();
+      const orders = getUserOrders(user.id);
+      setUserOrders(orders);
     }
   }, [user, isLoading, navigate, getUserOrders]);
 
@@ -93,18 +95,18 @@ export default function AccountPage() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <h3 className="text-sm font-medium text-muted-foreground">Имя пользователя</h3>
-                      <p className="mt-1">{user.username}</p>
+                      <h3 className="text-sm font-medium text-muted-foreground">Имя</h3>
+                      <p className="mt-1">{user.name}</p>
                     </div>
                     <div>
-                      <h3 className="text-sm font-medium text-muted-foreground">Роль</h3>
-                      <p className="mt-1">{user.role === 'admin' ? 'Администратор' : 'Пользователь'}</p>
+                      <h3 className="text-sm font-medium text-muted-foreground">Email</h3>
+                      <p className="mt-1">{user.email}</p>
                     </div>
                   </div>
                 </div>
               </TabsContent>
               <TabsContent value="orders">
-                {orders.length === 0 ? (
+                {userOrders.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-muted-foreground">У вас пока нет заказов</p>
                   </div>
@@ -121,9 +123,9 @@ export default function AccountPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {orders.map((order) => (
-                          <TableRow key={order._id}>
-                            <TableCell className="font-medium">#{order._id.slice(-6)}</TableCell>
+                        {userOrders.map((order) => (
+                          <TableRow key={order.id}>
+                            <TableCell className="font-medium">#{order.id}</TableCell>
                             <TableCell>{formatDate(order.createdAt)}</TableCell>
                             <TableCell>{order.total} ₽</TableCell>
                             <TableCell>{getStatusBadge(order.status)}</TableCell>

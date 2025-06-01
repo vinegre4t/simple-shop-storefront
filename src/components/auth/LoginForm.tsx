@@ -17,39 +17,37 @@ import { Button } from "@/components/ui/button";
 import { useAuth, LoginData } from "@/context/AuthContext";
 
 const loginSchema = z.object({
-  username: z.string().min(1, "Введите имя пользователя"),
-  password: z.string().min(1, "Введите пароль"),
+  email: z.string().email("Введите корректный email"),
+  password: z.string().min(6, "Пароль должен содержать не менее 6 символов"),
 });
 
 export default function LoginForm() {
   const { login, isLoading } = useAuth();
   const navigate = useNavigate();
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: "",
+      email: "",
       password: "",
     },
   });
 
   const onSubmit = async (data: z.infer<typeof loginSchema>) => {
-    try {
-      await login(data as LoginData);
-      navigate("/");
-    } catch (error) {
-      // Ошибка уже обработана в AuthContext
-    }
+    setAuthError(null);
+    login(data as LoginData);
+    navigate("/");
   };
 
   // Demo credentials helper
   const fillDemoCredentials = (type: 'user' | 'admin') => {
     if (type === 'admin') {
-      form.setValue('username', 'admin');
-      form.setValue('password', 'admin123');
+      form.setValue('email', 'admin@example.com');
+      form.setValue('password', 'password123');
     } else {
-      form.setValue('username', 'user');
-      form.setValue('password', 'user123');
+      form.setValue('email', 'user@example.com');
+      form.setValue('password', 'password123');
     }
   };
 
@@ -62,16 +60,22 @@ export default function LoginForm() {
         </p>
       </div>
 
+      {authError && (
+        <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
+          {authError}
+        </div>
+      )}
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
             control={form.control}
-            name="username"
+            name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Имя пользователя</FormLabel>
+                <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input placeholder="Введите имя пользователя" {...field} />
+                  <Input placeholder="example@mail.com" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

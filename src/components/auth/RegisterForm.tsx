@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -14,12 +14,11 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
 import { useAuth, RegisterData } from "@/context/AuthContext";
-import { useAjaxValidation } from "@/hooks/useAjaxValidation";
 
 const registerSchema = z.object({
-  username: z.string().min(2, "Имя пользователя должно содержать не менее 2 символов"),
+  name: z.string().min(2, "Имя должно содержать не менее 2 символов"),
+  email: z.string().email("Введите корректный email"),
   password: z.string().min(6, "Пароль должен содержать не менее 6 символов"),
   confirmPassword: z.string().min(6, "Подтвердите пароль"),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -30,78 +29,23 @@ const registerSchema = z.object({
 export default function RegisterForm() {
   const { register, isLoading } = useAuth();
   const navigate = useNavigate();
-  const { validationState, isValidating, validateUsername, validatePassword, clearValidation } = useAjaxValidation();
-  const [usernameCheckTimer, setUsernameCheckTimer] = useState<NodeJS.Timeout | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      username: "",
+      name: "",
+      email: "",
       password: "",
       confirmPassword: "",
     },
   });
 
-  const watchedUsername = form.watch("username");
-  const watchedPassword = form.watch("password");
-
-  // AJAX валидация имени пользователя с debounce
-  useEffect(() => {
-    if (usernameCheckTimer) {
-      clearTimeout(usernameCheckTimer);
-    }
-
-    if (watchedUsername && watchedUsername.length >= 2) {
-      const timer = setTimeout(() => {
-        validateUsername(watchedUsername);
-      }, 500); // Задержка 500мс для избежания частых запросов
-      
-      setUsernameCheckTimer(timer);
-    } else {
-      clearValidation('username');
-    }
-
-    return () => {
-      if (usernameCheckTimer) {
-        clearTimeout(usernameCheckTimer);
-      }
-    };
-  }, [watchedUsername, validateUsername, clearValidation]);
-
-  // AJAX валидация пароля
-  useEffect(() => {
-    if (watchedPassword && watchedPassword.length > 0) {
-      validatePassword(watchedPassword);
-    } else {
-      clearValidation('password');
-    }
-  }, [watchedPassword, validatePassword, clearValidation]);
-
   const onSubmit = async (data: z.infer<typeof registerSchema>) => {
-    try {
-      // Проверяем результаты AJAX валидации перед отправкой
-      if (validationState.username && !validationState.username.isValid) {
-        return;
-      }
-      
-      if (validationState.password && !validationState.password.isValid) {
-        return;
-      }
-
-      const { confirmPassword, ...registerData } = data;
-      await register(registerData as RegisterData);
-      navigate("/");
-    } catch (error) {
-      // Ошибка уже обработана в AuthContext
-    }
-  };
-
-  const isFormValid = () => {
-    const usernameValid = validationState.username?.isValid !== false;
-    const passwordValid = validationState.password?.isValid !== false;
-    const notValidating = !isValidating.username && !isValidating.password;
-    
-    return usernameValid && passwordValid && notValidating;
+    setAuthError(null);
+    const { confirmPassword, ...registerData } = data;
+    register(registerData as RegisterData);
+    navigate("/");
   };
 
   return (
@@ -113,29 +57,37 @@ export default function RegisterForm() {
         </p>
       </div>
 
+      {authError && (
+        <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
+          {authError}
+        </div>
+      )}
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
             control={form.control}
-            name="username"
+            name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Имя пользователя</FormLabel>
+                <FormLabel>Имя</FormLabel>
                 <FormControl>
-                  <div className="relative">
-                    <Input placeholder="Введите имя пользователя" {...field} />
-                    {isValidating.username && (
-                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
+                  <Input placeholder="Иван Иванов" {...field} />
                 </FormControl>
-                {validationState.username && (
-                  <p className={`text-xs ${validationState.username.isValid ? 'text-green-600' : 'text-red-600'}`}>
-                    {validationState.username.message}
-                  </p>
-                )}
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input placeholder="example@mail.com" {...field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -150,11 +102,6 @@ export default function RegisterForm() {
                 <FormControl>
                   <Input type="password" placeholder="••••••••" {...field} />
                 </FormControl>
-                {validationState.password && (
-                  <p className={`text-xs ${validationState.password.isValid ? 'text-green-600' : 'text-red-600'}`}>
-                    {validationState.password.message}
-                  </p>
-                )}
                 <FormMessage />
               </FormItem>
             )}
@@ -174,11 +121,7 @@ export default function RegisterForm() {
             )}
           />
 
-          <Button 
-            type="submit" 
-            className="w-full" 
-            disabled={isLoading || !isFormValid()}
-          >
+          <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? "Создание учетной записи..." : "Зарегистрироваться"}
           </Button>
         </form>
@@ -191,16 +134,6 @@ export default function RegisterForm() {
             Войти
           </Link>
         </p>
-      </div>
-
-      <div className="text-xs text-muted-foreground bg-muted p-3 rounded">
-        <strong>Требования к паролю:</strong>
-        <ul className="list-disc list-inside mt-1 space-y-1">
-          <li>Минимум 6 символов</li>
-          <li>Хотя бы одна заглавная буква</li>
-          <li>Хотя бы одна строчная буква</li>
-          <li>Хотя бы одна цифра</li>
-        </ul>
       </div>
     </div>
   );

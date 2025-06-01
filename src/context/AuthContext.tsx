@@ -1,27 +1,29 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { toast } from "@/components/ui/use-toast";
-import { authAPI } from '@/lib/api';
 
 export type User = {
-  username: string;
-  role: 'admin' | 'user';
+  id: number;
+  name: string;
+  email: string;
+  isAdmin?: boolean;
 };
 
 export type RegisterData = {
-  username: string;
+  name: string;
+  email: string;
   password: string;
 };
 
 export type LoginData = {
-  username: string;
+  email: string;
   password: string;
 };
 
 interface AuthContextType {
   user: User | null;
-  login: (data: LoginData) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
+  login: (data: LoginData) => void;
+  register: (data: RegisterData) => void;
   logout: () => void;
   isLoading: boolean;
   isAdmin: boolean;
@@ -29,111 +31,93 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Mock users for demo purposes
+const mockUsers: User[] = [
+  { id: 1, name: "Admin", email: "admin@example.com", isAdmin: true },
+  { id: 2, name: "User", email: "user@example.com" },
+];
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Check for stored user on mount
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
-    const storedToken = localStorage.getItem('authToken');
-    
-    if (storedUser && storedToken) {
-      try {
-        setUser(JSON.parse(storedUser));
-        console.log('Restored user from localStorage:', JSON.parse(storedUser));
-      } catch (error) {
-        console.error('Error parsing stored user:', error);
-        localStorage.removeItem('user');
-        localStorage.removeItem('authToken');
-      }
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
     }
+    setIsLoading(false);
   }, []);
 
-  const login = async (data: LoginData) => {
+  const login = (data: LoginData) => {
     setIsLoading(true);
-    console.log('Attempting login for user:', data.username);
-    
-    try {
-      const response = await authAPI.login(data);
-      console.log('Login response:', response);
+    // Mock login - in a real app this would be an API call
+    setTimeout(() => {
+      const foundUser = mockUsers.find(u => u.email === data.email);
       
-      // Бэкенд возвращает { token, user: { username, role } }
-      const userData = {
-        username: response.user.username,
-        role: response.user.role
-      };
-      
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('authToken', response.token);
-      
-      toast({
-        title: "Успешный вход",
-        description: `Добро пожаловать, ${userData.username}!`,
-      });
-    } catch (error: any) {
-      console.error('Login error:', error);
-      toast({
-        title: "Ошибка входа",
-        description: error.message || "Неверные учетные данные.",
-        variant: "destructive",
-      });
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const register = async (data: RegisterData) => {
-    setIsLoading(true);
-    console.log('Attempting registration for user:', data.username);
-    
-    try {
-      const response = await authAPI.register(data);
-      console.log('Registration response:', response);
-      
-      // Автоматически входим после регистрации
-      if (response.token) {
-        const userData = {
-          username: response.user.username,
-          role: response.user.role
-        };
-        
-        setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
-        localStorage.setItem('authToken', response.token);
+      if (foundUser) {
+        setUser(foundUser);
+        localStorage.setItem('user', JSON.stringify(foundUser));
+        toast({
+          title: "Успешный вход",
+          description: `Добро пожаловать, ${foundUser.name}!`,
+        });
+      } else {
+        toast({
+          title: "Ошибка входа",
+          description: "Неверный email или пароль.",
+          variant: "destructive",
+        });
       }
       
-      toast({
-        title: "Успешная регистрация",
-        description: `Добро пожаловать, ${data.username}!`,
-      });
-    } catch (error: any) {
-      console.error('Registration error:', error);
-      toast({
-        title: "Ошибка регистрации",
-        description: error.message || "Не удалось создать аккаунт.",
-        variant: "destructive",
-      });
-      throw error;
-    } finally {
       setIsLoading(false);
-    }
+    }, 1000);
+  };
+
+  const register = (data: RegisterData) => {
+    setIsLoading(true);
+    // Mock registration - in a real app this would be an API call
+    setTimeout(() => {
+      const exists = mockUsers.some(u => u.email === data.email);
+      
+      if (exists) {
+        toast({
+          title: "Ошибка регистрации",
+          description: "Пользователь с таким email уже существует.",
+          variant: "destructive",
+        });
+      } else {
+        const newUser: User = {
+          id: mockUsers.length + 1,
+          name: data.name,
+          email: data.email,
+        };
+        
+        mockUsers.push(newUser);
+        setUser(newUser);
+        localStorage.setItem('user', JSON.stringify(newUser));
+        
+        toast({
+          title: "Успешная регистрация",
+          description: `Добро пожаловать, ${data.name}!`,
+        });
+      }
+      
+      setIsLoading(false);
+    }, 1000);
   };
 
   const logout = () => {
-    console.log('Logging out user');
     setUser(null);
     localStorage.removeItem('user');
-    localStorage.removeItem('authToken');
     toast({
       title: "Выход выполнен",
       description: "Вы успешно вышли из системы.",
     });
   };
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.isAdmin || false;
 
   return (
     <AuthContext.Provider value={{ 

@@ -2,7 +2,6 @@
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
 import {
   Form,
   FormControl,
@@ -14,17 +13,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
 import { useProducts, Product, NewProduct } from "@/context/ProductContext";
-import { useAjaxValidation } from "@/hooks/useAjaxValidation";
 
 const productSchema = z.object({
   name: z.string().min(2, "Название должно содержать не менее 2 символов"),
   description: z.string().min(10, "Описание должно содержать не менее 10 символов"),
   price: z.coerce.number().min(1, "Цена должна быть больше 0"),
-  imageUrl: z.string().default("https://example.com/placeholder.jpg"),
+  image: z.string().default("/placeholder.svg"),
   category: z.string().min(2, "Категория должна содержать не менее 2 символов"),
-  stock: z.coerce.number().min(0, "Количество должно быть больше или равно 0"),
 });
 
 interface ProductFormProps {
@@ -34,7 +30,6 @@ interface ProductFormProps {
 
 export default function ProductForm({ product, onSuccess }: ProductFormProps) {
   const { addProduct, updateProduct } = useProducts();
-  const { validationState, isValidating, validatePrice, clearValidation } = useAjaxValidation();
   const isEditing = !!product;
 
   const form = useForm<z.infer<typeof productSchema>>({
@@ -43,60 +38,31 @@ export default function ProductForm({ product, onSuccess }: ProductFormProps) {
       name: product?.name || "",
       description: product?.description || "",
       price: product?.price || 0,
-      imageUrl: product?.imageUrl || "https://example.com/placeholder.jpg",
+      image: product?.image || "/placeholder.svg",
       category: product?.category || "",
-      stock: product?.stock || 0,
     },
   });
 
-  const watchedPrice = form.watch("price");
-
-  // AJAX валидация цены
-  useEffect(() => {
-    if (watchedPrice && watchedPrice > 0) {
-      validatePrice(watchedPrice.toString());
-    } else {
-      clearValidation('price');
-    }
-  }, [watchedPrice, validatePrice, clearValidation]);
-
   const onSubmit = async (data: z.infer<typeof productSchema>) => {
-    try {
-      // Проверяем результаты AJAX валидации
-      if (validationState.price && !validationState.price.isValid) {
-        return;
-      }
-
-      if (isEditing && product) {
-        await updateProduct(product._id, data);
-      } else {
-        await addProduct(data as NewProduct);
-      }
-      
-      if (onSuccess) {
-        onSuccess();
-      }
-      
-      if (!isEditing) {
-        form.reset({
-          name: "",
-          description: "",
-          price: 0,
-          imageUrl: "https://example.com/placeholder.jpg",
-          category: "",
-          stock: 0,
-        });
-      }
-    } catch (error) {
-      console.error('Form submission error:', error);
+    if (isEditing && product) {
+      updateProduct(product.id, data);
+    } else {
+      addProduct(data as NewProduct);
     }
-  };
-
-  const isFormValid = () => {
-    const priceValid = validationState.price?.isValid !== false;
-    const notValidating = !isValidating.price;
     
-    return priceValid && notValidating;
+    if (onSuccess) {
+      onSuccess();
+    }
+    
+    if (!isEditing) {
+      form.reset({
+        name: "",
+        description: "",
+        price: 0,
+        image: "/placeholder.svg",
+        category: "",
+      });
+    }
   };
 
   return (
@@ -142,20 +108,8 @@ export default function ProductForm({ product, onSuccess }: ProductFormProps) {
               <FormItem>
                 <FormLabel>Цена (₽)</FormLabel>
                 <FormControl>
-                  <div className="relative">
-                    <Input type="number" min="0" step="0.01" {...field} />
-                    {isValidating.price && (
-                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
+                  <Input type="number" min="0" step="1" {...field} />
                 </FormControl>
-                {validationState.price && (
-                  <p className={`text-xs ${validationState.price.isValid ? 'text-green-600' : 'text-red-600'}`}>
-                    {validationState.price.message}
-                  </p>
-                )}
                 <FormMessage />
               </FormItem>
             )}
@@ -163,12 +117,12 @@ export default function ProductForm({ product, onSuccess }: ProductFormProps) {
 
           <FormField
             control={form.control}
-            name="stock"
+            name="category"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Количество</FormLabel>
+                <FormLabel>Категория</FormLabel>
                 <FormControl>
-                  <Input type="number" min="0" step="1" {...field} />
+                  <Input placeholder="Категория товара" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -178,21 +132,7 @@ export default function ProductForm({ product, onSuccess }: ProductFormProps) {
 
         <FormField
           control={form.control}
-          name="category"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Категория</FormLabel>
-              <FormControl>
-                <Input placeholder="Категория товара" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="imageUrl"
+          name="image"
           render={({ field }) => (
             <FormItem>
               <FormLabel>URL изображения</FormLabel>
@@ -204,10 +144,7 @@ export default function ProductForm({ product, onSuccess }: ProductFormProps) {
           )}
         />
 
-        <Button 
-          type="submit" 
-          disabled={!isFormValid()}
-        >
+        <Button type="submit">
           {isEditing ? "Обновить товар" : "Добавить товар"}
         </Button>
       </form>

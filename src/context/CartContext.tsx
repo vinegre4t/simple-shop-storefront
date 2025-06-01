@@ -1,145 +1,85 @@
 
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { toast } from "@/hooks/use-toast";
-import { cartAPI } from '@/lib/api';
-import { useAuth } from './AuthContext';
+import { createContext, useContext, useState, ReactNode } from 'react';
+import { toast } from "@/components/ui/use-toast";
 
 export type CartItem = {
-  product: string; // ID товара
+  id: number;
   name: string;
   price: number;
-  imageUrl: string;
+  image: string;
   quantity: number;
-};
-
-export type Cart = {
-  _id: string;
-  user: string;
-  items: CartItem[];
 };
 
 interface CartContextType {
   items: CartItem[];
-  addToCart: (productId: string, quantity?: number) => Promise<void>;
-  removeFromCart: (productId: string) => Promise<void>;
-  updateQuantity: (productId: string, quantity: number) => Promise<void>;
-  clearCart: () => Promise<void>;
-  loadCart: () => Promise<void>;
+  addToCart: (product: Omit<CartItem, "quantity">) => void;
+  removeFromCart: (id: number) => void;
+  updateQuantity: (id: number, quantity: number) => void;
+  clearCart: () => void;
   cartTotal: number;
   itemCount: number;
-  isLoading: boolean;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const { user } = useAuth();
 
-  const loadCart = async () => {
-    if (!user) {
-      setItems([]);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const cartData = await cartAPI.get();
-      setItems(cartData.items || []);
-    } catch (error: any) {
-      console.error('Error loading cart:', error);
-      setItems([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Load cart when user changes
-  useEffect(() => {
-    if (user) {
-      loadCart();
-    } else {
-      setItems([]);
-    }
-  }, [user]);
-
-  const addToCart = async (productId: string, quantity: number = 1) => {
-    if (!user) {
-      toast({
-        title: "Необходима авторизация",
-        description: "Войдите в систему для добавления товаров в корзину.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      await cartAPI.add(productId, quantity);
-      await loadCart(); // Перезагружаем корзину
+  const addToCart = (product: Omit<CartItem, "quantity">) => {
+    setItems(currentItems => {
+      const existingItem = currentItems.find(item => item.id === product.id);
       
+      if (existingItem) {
+        toast({
+          title: "Товар добавлен",
+          description: `${product.name} добавлен в корзину.`,
+        });
+        
+        return currentItems.map(item => 
+          item.id === product.id 
+            ? { ...item, quantity: item.quantity + 1 } 
+            : item
+        );
+      }
+
       toast({
         title: "Товар добавлен",
-        description: "Товар добавлен в корзину.",
+        description: `${product.name} добавлен в корзину.`,
       });
-    } catch (error: any) {
-      toast({
-        title: "Ошибка добавления",
-        description: error.message || "Не удалось добавить товар в корзину.",
-        variant: "destructive",
-      });
-    }
+
+      return [...currentItems, { ...product, quantity: 1 }];
+    });
   };
 
-  const removeFromCart = async (productId: string) => {
-    try {
-      await cartAPI.remove(productId);
-      await loadCart(); // Перезагружаем корзину
-      
-      toast({
-        title: "Товар удален",
-        description: "Товар удален из корзины.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Ошибка удаления",
-        description: error.message || "Не удалось удалить товар из корзины.",
-        variant: "destructive",
-      });
-    }
+  const removeFromCart = (id: number) => {
+    setItems(currentItems => {
+      const itemToRemove = currentItems.find(item => item.id === id);
+      if (itemToRemove) {
+        toast({
+          title: "Товар удален",
+          description: `${itemToRemove.name} удален из корзины.`,
+        });
+      }
+      return currentItems.filter(item => item.id !== id);
+    });
   };
 
-  const updateQuantity = async (productId: string, quantity: number) => {
+  const updateQuantity = (id: number, quantity: number) => {
     if (quantity < 1) return;
     
-    try {
-      await cartAPI.update(productId, quantity);
-      await loadCart(); // Перезагружаем корзину
-    } catch (error: any) {
-      toast({
-        title: "Ошибка обновления",
-        description: error.message || "Не удалось обновить количество.",
-        variant: "destructive",
-      });
-    }
+    setItems(currentItems => 
+      currentItems.map(item => 
+        item.id === id ? { ...item, quantity } : item
+      )
+    );
   };
 
-  const clearCart = async () => {
-    try {
-      await cartAPI.clear();
-      setItems([]);
-      
-      toast({
-        title: "Корзина очищена",
-        description: "Все товары были удалены из корзины.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Ошибка очистки",
-        description: error.message || "Не удалось очистить корзину.",
-        variant: "destructive",
-      });
-    }
+  const clearCart = () => {
+    setItems([]);
+    toast({
+      title: "Корзина очищена",
+      description: "Все товары были удалены из корзины.",
+    });
   };
 
   const cartTotal = items.reduce((total, item) => total + item.price * item.quantity, 0);
@@ -152,10 +92,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       removeFromCart, 
       updateQuantity, 
       clearCart,
-      loadCart,
       cartTotal,
-      itemCount,
-      isLoading
+      itemCount
     }}>
       {children}
     </CartContext.Provider>

@@ -15,7 +15,7 @@ export default function CartItem({ item }: CartItemProps) {
     <div className="flex items-center space-x-4 py-4">
       <div className="h-16 w-16 bg-muted rounded overflow-hidden">
         <img
-          src={item.imageUrl}
+          src={item.image}
           alt={item.name}
           className="h-full w-full object-cover"
         />
@@ -30,7 +30,7 @@ export default function CartItem({ item }: CartItemProps) {
             variant="outline"
             size="icon"
             className="h-8 w-8 rounded-r-none"
-            onClick={() => updateQuantity(item.product, Math.max(1, item.quantity - 1))}
+            onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
           >
             -
           </Button>
@@ -38,14 +38,14 @@ export default function CartItem({ item }: CartItemProps) {
             type="number"
             min="1"
             value={item.quantity}
-            onChange={(e) => updateQuantity(item.product, parseInt(e.target.value) || 1)}
+            onChange={(e) => updateQuantity(item.id, parseInt(e.target.value))}
             className="h-8 w-12 rounded-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
           <Button
             variant="outline"
             size="icon"
             className="h-8 w-8 rounded-l-none"
-            onClick={() => updateQuantity(item.product, item.quantity + 1)}
+            onClick={() => updateQuantity(item.id, item.quantity + 1)}
           >
             +
           </Button>
@@ -57,7 +57,7 @@ export default function CartItem({ item }: CartItemProps) {
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-muted-foreground hover:text-destructive"
-          onClick={() => removeFromCart(item.product)}
+          onClick={() => removeFromCart(item.id)}
         >
           <Trash className="h-4 w-4" />
         </Button>

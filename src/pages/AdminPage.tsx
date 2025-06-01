@@ -10,24 +10,45 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import ProductForm from "@/components/admin/ProductForm";
-import ProductGrid from "@/components/products/ProductGrid";
+import InlineProductEdit from "@/components/admin/InlineProductEdit";
 import OrdersList from "@/components/admin/OrdersList";
 import { useAuth } from "@/context/AuthContext";
 import { useProducts } from "@/context/ProductContext";
+import { toast } from "@/components/ui/use-toast";
 
 export default function AdminPage() {
   const { user, isAdmin, isLoading } = useAuth();
-  const { products } = useProducts();
+  const { products, loadProducts, isLoading: productsLoading } = useProducts();
   const navigate = useNavigate();
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   
   useEffect(() => {
     if (!isLoading && (!user || !isAdmin)) {
       navigate("/login");
     }
   }, [user, isAdmin, isLoading, navigate]);
+
+  const handleRefreshProducts = async () => {
+    setRefreshing(true);
+    try {
+      await loadProducts();
+      toast({
+        title: "Данные обновлены",
+        description: "Список товаров обновлен без перезагрузки страницы",
+      });
+    } catch (error) {
+      toast({
+        title: "Ошибка обновления",
+        description: "Не удалось обновить данные",
+        variant: "destructive",
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -54,6 +75,9 @@ export default function AdminPage() {
       <div className="space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h1 className="text-3xl font-bold">Панель администратора</h1>
+          <p className="text-sm text-muted-foreground">
+            AJAX-валидация и редактирование без перезагрузки
+          </p>
         </div>
 
         <Tabs defaultValue="products">
@@ -65,12 +89,38 @@ export default function AdminPage() {
           <TabsContent value="products">
             <div className="mb-6 flex justify-between items-center">
               <h2 className="text-xl font-semibold">Управление товарами</h2>
-              <Button onClick={() => setIsAddProductOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" /> Добавить товар
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={handleRefreshProducts}
+                  disabled={refreshing || productsLoading}
+                >
+                  <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                  {refreshing ? 'Обновление...' : 'Обновить'}
+                </Button>
+                <Button onClick={() => setIsAddProductOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" /> Добавить товар
+                </Button>
+              </div>
             </div>
             
-            <ProductGrid products={products} />
+            {productsLoading ? (
+              <div className="text-center py-8">
+                <p>Загрузка товаров...</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {products.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>Товары не найдены</p>
+                  </div>
+                ) : (
+                  products.map((product) => (
+                    <InlineProductEdit key={product._id} product={product} />
+                  ))
+                )}
+              </div>
+            )}
             
             <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
               <DialogContent className="sm:max-w-[550px]">

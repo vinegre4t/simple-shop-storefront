@@ -2,6 +2,7 @@
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
 import {
   Form,
   FormControl,
@@ -13,7 +14,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { useProducts, Product, NewProduct } from "@/context/ProductContext";
+import { useAjaxValidation } from "@/hooks/useAjaxValidation";
 
 const productSchema = z.object({
   name: z.string().min(2, "Название должно содержать не менее 2 символов"),
@@ -31,6 +34,7 @@ interface ProductFormProps {
 
 export default function ProductForm({ product, onSuccess }: ProductFormProps) {
   const { addProduct, updateProduct } = useProducts();
+  const { validationState, isValidating, validatePrice, clearValidation } = useAjaxValidation();
   const isEditing = !!product;
 
   const form = useForm<z.infer<typeof productSchema>>({
@@ -45,8 +49,24 @@ export default function ProductForm({ product, onSuccess }: ProductFormProps) {
     },
   });
 
+  const watchedPrice = form.watch("price");
+
+  // AJAX валидация цены
+  useEffect(() => {
+    if (watchedPrice && watchedPrice > 0) {
+      validatePrice(watchedPrice.toString());
+    } else {
+      clearValidation('price');
+    }
+  }, [watchedPrice, validatePrice, clearValidation]);
+
   const onSubmit = async (data: z.infer<typeof productSchema>) => {
     try {
+      // Проверяем результаты AJAX валидации
+      if (validationState.price && !validationState.price.isValid) {
+        return;
+      }
+
       if (isEditing && product) {
         await updateProduct(product._id, data);
       } else {
@@ -70,6 +90,13 @@ export default function ProductForm({ product, onSuccess }: ProductFormProps) {
     } catch (error) {
       console.error('Form submission error:', error);
     }
+  };
+
+  const isFormValid = () => {
+    const priceValid = validationState.price?.isValid !== false;
+    const notValidating = !isValidating.price;
+    
+    return priceValid && notValidating;
   };
 
   return (
@@ -115,8 +142,20 @@ export default function ProductForm({ product, onSuccess }: ProductFormProps) {
               <FormItem>
                 <FormLabel>Цена (₽)</FormLabel>
                 <FormControl>
-                  <Input type="number" min="0" step="0.01" {...field} />
+                  <div className="relative">
+                    <Input type="number" min="0" step="0.01" {...field} />
+                    {isValidating.price && (
+                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
                 </FormControl>
+                {validationState.price && (
+                  <p className={`text-xs ${validationState.price.isValid ? 'text-green-600' : 'text-red-600'}`}>
+                    {validationState.price.message}
+                  </p>
+                )}
                 <FormMessage />
               </FormItem>
             )}
@@ -165,7 +204,10 @@ export default function ProductForm({ product, onSuccess }: ProductFormProps) {
           )}
         />
 
-        <Button type="submit">
+        <Button 
+          type="submit" 
+          disabled={!isFormValid()}
+        >
           {isEditing ? "Обновить товар" : "Добавить товар"}
         </Button>
       </form>
